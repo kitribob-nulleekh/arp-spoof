@@ -245,23 +245,18 @@ int main(int argc, char* argv[]) {
   }
 
   for (int i=0 ; i < (argc-2)/2 ; i++) {
-    if (macMap.end() != macMap.find(targetIp[i])) {
-      if (macMap.end() != macMap.find(senderIp[i])) {
-        for (int i=0 ; i<3 ; i++) {
-          res = sendArpReply(handle, macMap.find(targetIp[i])->second, targetIp[i], macMap.find(senderIp[i])->second, senderIp[i]);
-          printf("INFO: %d.%d.%d.%d's arp table has been normalized\n", senderIp[i]>>24&0xFF, senderIp[i]>>16&0xFF, senderIp[i]>>8&0xFF, senderIp[i]>>0&0xFF);
-        }
-        if (res != 0) {
-          printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
-                 pcap_geterr(handle));
-          return -1;
-        }
-      } else {
-      printf("ERROR: cannot find mac address of %d.%d.%d.%d\n", senderIp[i]>>24&0xFF, senderIp[i]>>16&0xFF, senderIp[i]>>8&0xFF, senderIp[i]>>0&0xFF);
+    if (macMap.end() != macMap.find(senderIp[i])) {
+      for (int j=0 ; j<9 ; j++) {
+        res = sendArpRequest(handle, macMap.find(senderIp[i])->second, senderIp[i], targetIp[i]);
+        printf("INFO: %d.%d.%d.%d's arp table has been normalized\n", senderIp[i]>>24&0xFF, senderIp[i]>>16&0xFF, senderIp[i]>>8&0xFF, senderIp[i]>>0&0xFF);
+      }
+      if (res != 0) {
+        printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
+               pcap_geterr(handle));
         return -1;
       }
     } else {
-      printf("ERROR: cannot find mac address of %d.%d.%d.%d\n", targetIp[i]>>24&0xFF, targetIp[i]>>16&0xFF, targetIp[i]>>8&0xFF, targetIp[i]>>0&0xFF);
+      printf("ERROR: cannot find mac address of %d.%d.%d.%d\n", senderIp[i]>>24&0xFF, senderIp[i]>>16&0xFF, senderIp[i]>>8&0xFF, senderIp[i]>>0&0xFF);
         return -1;
     }
   }
