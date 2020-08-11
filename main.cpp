@@ -246,7 +246,7 @@ int main(int argc, char* argv[]) {
 
   for (int i=0 ; i < (argc-2)/2 ; i++) {
     if (macMap.end() != macMap.find(senderIp[i])) {
-      for (int j=0 ; j<9 ; j++) {
+      for (int j=0 ; j<3 ; j++) {
         res = sendArpRequest(handle, macMap.find(senderIp[i])->second, senderIp[i], targetIp[i]);
         printf("INFO: %d.%d.%d.%d's arp table has been normalized\n", senderIp[i]>>24&0xFF, senderIp[i]>>16&0xFF, senderIp[i]>>8&0xFF, senderIp[i]>>0&0xFF);
       }
