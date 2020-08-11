@@ -78,7 +78,7 @@ Ip getMyIpv4Address(const char* dev) {
 
 int sendArpPacket(pcap_t* handle, Mac ethernetDestinationMac,
                     Mac ethernetSourceMac, u_short operation, Mac arpSourceMac,
-                    Ip arpSourceIp, Mac arpTargetMac, Ip arpTargetIp) {
+                    Ip arpSourceIp, Mac arpmacMap, Ip arpTargetIp) {
   arp_packet packet;
 
   packet.eth_.dmac_ = ethernetDestinationMac;
@@ -92,7 +92,7 @@ int sendArpPacket(pcap_t* handle, Mac ethernetDestinationMac,
   packet.arp_.op_ = operation;
   packet.arp_.smac_ = arpSourceMac;
   packet.arp_.sip_ = arpSourceIp;
-  packet.arp_.tmac_ = arpTargetMac;
+  packet.arp_.tmac_ = arpmacMap;
   packet.arp_.tip_ = arpTargetIp;
 
   return pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&packet),
@@ -107,10 +107,10 @@ int sendArpRequest(pcap_t* handle, Mac sourceMac,
 }
 
 int sendArpReply(pcap_t* handle, Mac sourceMac,
-                    Ip sourceIp, Mac targetMac, Ip targetIp) {
-  return sendArpPacket(handle, targetMac, sourceMac,
+                    Ip sourceIp, Mac macMap, Ip targetIp) {
+  return sendArpPacket(handle, macMap, sourceMac,
                           htons(ArpHdr::Reply), sourceMac, htonl(sourceIp),
-                          targetMac, htonl(targetIp));
+                          macMap, htonl(targetIp));
 }
 
 int main(int argc, char* argv[]) {  
@@ -130,7 +130,7 @@ int main(int argc, char* argv[]) {
   Mac myMac = getMyMacAddress(dev);
   Ip  my_ip = getMyIpv4Address(dev);
 
-  map<Ip, Mac> senderMac;
+  map<Ip, Mac> macMap;
   Ip senderIp[(argc-2)/2];
   Ip targetIp[(argc-2)/2];
 
@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
   int res;
 
   for (int i=0 ; i < (argc-2)/2 ; i++) {
-    if (NULL != senderMac[senderIp[i]]) {
+    if (macMap.end() == macMap.find(senderIp[i])) {
       res = sendArpRequest(handle, myMac, my_ip, senderIp[i]);
 
       if (res != 0) {
@@ -179,7 +179,49 @@ int main(int argc, char* argv[]) {
 
         if (arpreply->tmac() == myMac && arpreply->tip() == my_ip &&
             arpreply->sip() == senderIp[i]) {
-          senderMac.insert(make_pair(senderIp[i], arpreply->smac()));
+          macMap.insert(make_pair(senderIp[i], (Mac)arpreply->smac()));
+          break;
+        }
+      }
+    }
+    if (macMap.end() == macMap.find(targetIp[i])) {
+      res = sendArpRequest(handle, myMac, my_ip, targetIp[i]);
+
+      if (res != 0) {
+        printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
+               pcap_geterr(handle));
+        return -1;
+      }
+
+      struct pcap_pkthdr* header;
+      const uint8_t* packet;
+      while (true) {
+        sleep(0);
+        res = pcap_next_ex(handle, &header, &packet);
+
+        if (res == 0) continue;
+        if (res == -1 || res == -2) {
+          printf("ERROR: pcap_next_ex return %d error=%s\n", res,
+                 pcap_geterr(handle));
+          return -1;
+        }
+
+        EthHdr* replyEthernet = (EthHdr*)packet;
+
+        if (replyEthernet->type() != EthHdr::Arp) {
+          continue;
+        }
+
+        ArpHdr* arpreply = (ArpHdr*)(packet + sizeof(EthHdr));
+
+        if (arpreply->hrd() != ArpHdr::ETHER ||
+            arpreply->pro() != EthHdr::Ip4 || arpreply->op() != ArpHdr::Reply) {
+          continue;
+        }
+
+        if (arpreply->tmac() == myMac && arpreply->tip() == my_ip &&
+            arpreply->sip() == targetIp[i]) {
+          macMap.insert(make_pair(targetIp[i], (Mac)arpreply->smac()));
           break;
         }
       }
@@ -187,12 +229,17 @@ int main(int argc, char* argv[]) {
   }
 
   for (int i=0 ; i < (argc-2)/2 ; i++) {
-    res = sendArpReply(handle, myMac, targetIp[i], senderMac[senderIp[i]], senderIp[i]);
+    if (macMap.end() != macMap.find(senderIp[i])) {
+      res = sendArpReply(handle, myMac, targetIp[i], macMap.find(senderIp[i])->second, senderIp[i]);
 
-    if (res != 0) {
-      printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
-             pcap_geterr(handle));
-      return -1;
+      if (res != 0) {
+        printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
+               pcap_geterr(handle));
+        return -1;
+      }
+    } else {
+      printf("ERROR: cannot find mac address of %d.%d.%d.%d\n", senderIp[i]>>24&0xFF, senderIp[i]>>16&0xFF, senderIp[i]>>8&0xFF, senderIp[i]>>0&0xFF);
+        return -1;
     }
   }
 
