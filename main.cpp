@@ -35,7 +35,7 @@ void usage() {
 
 // ref:
 // https://www.includehelp.com/cpp-programs/get-mac-address-of-linux-based-network-device.aspx
-Mac get_my_mac_address(char* dev) {
+Mac getMyMacAddress(char* dev) {
   int fd;
 
   struct ifreq ifr;
@@ -57,7 +57,7 @@ Mac get_my_mac_address(char* dev) {
 
 // ref:
 // https://stackoverflow.com/questions/2283494/get-ip-address-of-an-interface-on-linux
-Ip get_my_ipv4_address(const char* dev) {
+Ip getMyIpv4Address(const char* dev) {
   int fd;
   struct ifreq ifr;
   uint32_t ip_address;
@@ -76,9 +76,9 @@ Ip get_my_ipv4_address(const char* dev) {
   return ip_address;
 }
 
-int aio_send_packet(pcap_t* handle, Mac ethernetDestinationMac,
+int sendArpPacket(pcap_t* handle, Mac ethernetDestinationMac,
                     Mac ethernetSourceMac, u_short operation, Mac arpSourceMac,
-                    u_long arpSourceIp, Mac arpTargetMac, u_long arpTargetIp) {
+                    Ip arpSourceIp, Mac arpTargetMac, Ip arpTargetIp) {
   arp_packet packet;
 
   packet.eth_.dmac_ = ethernetDestinationMac;
@@ -99,6 +99,20 @@ int aio_send_packet(pcap_t* handle, Mac ethernetDestinationMac,
                          sizeof(arp_packet));
 }
 
+int sendArpRequest(pcap_t* handle, Mac sourceMac,
+                    Ip sourceIp, Ip targetIp) {
+  return sendArpPacket(handle, Mac("ff:ff:ff:ff:ff:ff"), sourceMac,
+                            htons(ArpHdr::Request), sourceMac, htonl(sourceIp),
+                            Mac("00:00:00:00:00:00"), htonl(targetIp));
+}
+
+int sendArpReply(pcap_t* handle, Mac sourceMac,
+                    Ip sourceIp, Mac targetMac, Ip targetIp) {
+  return sendArpPacket(handle, targetMac, sourceMac,
+                          htons(ArpHdr::Reply), sourceMac, htonl(sourceIp),
+                          targetMac, htonl(targetIp));
+}
+
 int main(int argc, char* argv[]) {  
   if (4 > argc || 0 != argc%2) {
     usage();
@@ -113,25 +127,23 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  Mac my_mac = get_my_mac_address(dev);
-  Ip  my_ip = get_my_ipv4_address(dev);
+  Mac myMac = getMyMacAddress(dev);
+  Ip  my_ip = getMyIpv4Address(dev);
 
-  map<Ip, Mac> sender_mac;
-  Ip sender_ip[(argc-2)/2];
-  Ip target_ip[(argc-2)/2];
+  map<Ip, Mac> senderMac;
+  Ip senderIp[(argc-2)/2];
+  Ip targetIp[(argc-2)/2];
 
   for (int i=0 ; i < (argc-2)/2 ; i++) {
-    sender_ip[i] = Ip(argv[2+i*2]);
-    target_ip[i] = Ip(argv[3+i*2]);
+    senderIp[i] = Ip(argv[2+i*2]);
+    targetIp[i] = Ip(argv[3+i*2]);
   }
 
   int res;
 
   for (int i=0 ; i < (argc-2)/2 ; i++) {
-    if (NULL != sender_mac[sender_ip[i]]) {
-      res = aio_send_packet(handle, Mac("ff:ff:ff:ff:ff:ff"), my_mac,
-                            htons(ArpHdr::Request), my_mac, htonl(my_ip),
-                            Mac("00:00:00:00:00:00"), htonl(sender_ip[i]));
+    if (NULL != senderMac[senderIp[i]]) {
+      res = sendArpRequest(handle, myMac, my_ip, senderIp[i]);
 
       if (res != 0) {
         printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
@@ -152,22 +164,22 @@ int main(int argc, char* argv[]) {
           return -1;
         }
 
-        EthHdr* respondEthernet = (EthHdr*)packet;
+        EthHdr* replyEthernet = (EthHdr*)packet;
 
-        if (respondEthernet->type() != EthHdr::Arp) {
+        if (replyEthernet->type() != EthHdr::Arp) {
           continue;
         }
 
-        ArpHdr* arpRespond = (ArpHdr*)(packet + sizeof(EthHdr));
+        ArpHdr* arpreply = (ArpHdr*)(packet + sizeof(EthHdr));
 
-        if (arpRespond->hrd() != ArpHdr::ETHER ||
-            arpRespond->pro() != EthHdr::Ip4 || arpRespond->op() != ArpHdr::Reply) {
+        if (arpreply->hrd() != ArpHdr::ETHER ||
+            arpreply->pro() != EthHdr::Ip4 || arpreply->op() != ArpHdr::Reply) {
           continue;
         }
 
-        if (arpRespond->tmac() == my_mac && arpRespond->tip() == my_ip &&
-            arpRespond->sip() == sender_ip[i]) {
-          sender_mac.insert(make_pair(sender_ip[i], arpRespond->smac()));
+        if (arpreply->tmac() == myMac && arpreply->tip() == my_ip &&
+            arpreply->sip() == senderIp[i]) {
+          senderMac.insert(make_pair(senderIp[i], arpreply->smac()));
           break;
         }
       }
@@ -175,9 +187,7 @@ int main(int argc, char* argv[]) {
   }
 
   for (int i=0 ; i < (argc-2)/2 ; i++) {
-    res = aio_send_packet(handle, sender_mac[sender_ip[i]], my_mac,
-                          htons(ArpHdr::Reply), my_mac, htonl(target_ip[i]),
-                          sender_mac[sender_ip[i]], htonl(sender_ip[i]));
+    res = sendArpReply(handle, myMac, targetIp[i], senderMac[senderIp[i]], senderIp[i]);
 
     if (res != 0) {
       printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
