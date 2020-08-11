@@ -244,6 +244,4 @@ int main(int argc, char* argv[]) {
   }
 
   pcap_close(handle);
-
-  printf("Done!\n");
 }
