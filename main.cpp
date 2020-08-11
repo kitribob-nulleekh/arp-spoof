@@ -248,13 +248,13 @@ int main(int argc, char* argv[]) {
     if (macMap.end() != macMap.find(senderIp[i])) {
       for (int j=0 ; j<3 ; j++) {
         res = sendArpRequest(handle, macMap.find(senderIp[i])->second, senderIp[i], targetIp[i]);
-        printf("INFO: %d.%d.%d.%d's arp table has been normalized\n", senderIp[i]>>24&0xFF, senderIp[i]>>16&0xFF, senderIp[i]>>8&0xFF, senderIp[i]>>0&0xFF);
-      }
-      if (res != 0) {
+        if (res != 0) {
         printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
                pcap_geterr(handle));
         return -1;
+        }
       }
+      printf("INFO: %d.%d.%d.%d's arp table has been normalized\n", senderIp[i]>>24&0xFF, senderIp[i]>>16&0xFF, senderIp[i]>>8&0xFF, senderIp[i]>>0&0xFF);
     } else {
       printf("ERROR: cannot find mac address of %d.%d.%d.%d\n", senderIp[i]>>24&0xFF, senderIp[i]>>16&0xFF, senderIp[i]>>8&0xFF, senderIp[i]>>0&0xFF);
         return -1;
