@@ -140,91 +140,114 @@ int main(int argc, char* argv[]) {
     }
 
     int durationTime = atoi(argv[argc-1]);
+
     time_t startTime;
 
     int res;
 
     for (int i=0 ; i < (argc-3)/2 ; i++) {
         if (macMap.end() == macMap.find(senderIp[i])) {
-            res = sendArpRequest(handle, myMac, myIp, senderIp[i]);
+        	for (int j=0 ; j < 4 ; j++) {
+        		if (3 == j) {
+	                printf("ERROR: sender does not reply arp\n");
+	                return -1;
+        		}
 
-            if (res != 0) {
-                printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
-                       pcap_geterr(handle));
-                return -1;
-            }
+	        	startTime = time(NULL);
 
-            struct pcap_pkthdr* header;
-            const uint8_t* packet;
-            while (true) {
-                res = pcap_next_ex(handle, &header, &packet);
+	            res = sendArpRequest(handle, myMac, myIp, senderIp[i]);
 
-                if (res == 0) continue;
-                if (res == -1 || res == -2) {
-                    printf("ERROR: pcap_next_ex return %d error=%s\n", res,
-                           pcap_geterr(handle));
-                    return -1;
-                }
+	            if (res != 0) {
+	                printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
+	                       pcap_geterr(handle));
+	                return -1;
+	            }
 
-                EthHdr* replyEthernet = (EthHdr*)packet;
+	            struct pcap_pkthdr* header;
+	            const uint8_t* packet;
+	            while (true) {
+	            	if (time(NULL) - startTime > 3) continue;
 
-                if (replyEthernet->type() != EthHdr::Arp) {
-                    continue;
-                }
+	                res = pcap_next_ex(handle, &header, &packet);
 
-                ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
+	                if (res == 0) continue;
+	                if (res == -1 || res == -2) {
+	                    printf("ERROR: pcap_next_ex return %d error=%s\n", res,
+	                           pcap_geterr(handle));
+	                    return -1;
+	                }
 
-                if (replyArp->hrd() != ArpHdr::ETHER ||
-                        replyArp->pro() != EthHdr::Ip4 || replyArp->op() != ArpHdr::Reply) {
-                    continue;
-                }
+	                EthHdr* replyEthernet = (EthHdr*)packet;
 
-                if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
-                        replyArp->sip() == senderIp[i]) {
-                    macMap.insert(make_pair(senderIp[i], (Mac)replyArp->smac()));
-                    break;
-                }
-            }
+	                if (replyEthernet->type() != EthHdr::Arp) {
+	                    continue;
+	                }
+
+	                ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
+
+	                if (replyArp->hrd() != ArpHdr::ETHER ||
+	                        replyArp->pro() != EthHdr::Ip4 || replyArp->op() != ArpHdr::Reply) {
+	                    continue;
+	                }
+
+	                if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
+	                        replyArp->sip() == senderIp[i]) {
+	                    macMap.insert(make_pair(senderIp[i], (Mac)replyArp->smac()));
+	                    break;
+	                }
+	            }
+	        }
         }
         if (macMap.end() == macMap.find(targetIp[i])) {
-            res = sendArpRequest(handle, myMac, myIp, targetIp[i]);
+        	for (int j=0 ; j < 4 ; j++) {
+        		if (3 == j) {
+	                printf("ERROR: target does not reply arp\n");
+	                return -1;
+        		}
 
-            if (res != 0) {
-                printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
-                       pcap_geterr(handle));
-                return -1;
-            }
+	        	startTime = time(NULL);
 
-            struct pcap_pkthdr* header;
-            const uint8_t* packet;
-            while (true) {
-                res = pcap_next_ex(handle, &header, &packet);
+	            res = sendArpRequest(handle, myMac, myIp, targetIp[i]);
 
-                if (res == 0) continue;
-                if (res == -1 || res == -2) {
-                    printf("ERROR: pcap_next_ex return %d error=%s\n", res,
-                           pcap_geterr(handle));
-                    return -1;
-                }
+	            if (res != 0) {
+	                printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
+	                       pcap_geterr(handle));
+	                return -1;
+	            }
 
-                EthHdr* replyEthernet = (EthHdr*)packet;
+	            struct pcap_pkthdr* header;
+	            const uint8_t* packet;
+	            while (true) {
+	            	if (time(NULL) - startTime > 3) continue;
 
-                if (replyEthernet->type() != EthHdr::Arp) {
-                    continue;
-                }
+	                res = pcap_next_ex(handle, &header, &packet);
 
-                ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
+	                if (res == 0) continue;
+	                if (res == -1 || res == -2) {
+	                    printf("ERROR: pcap_next_ex return %d error=%s\n", res,
+	                           pcap_geterr(handle));
+	                    return -1;
+	                }
 
-                if (replyArp->hrd() != ArpHdr::ETHER ||
-                        replyArp->pro() != EthHdr::Ip4 || replyArp->op() != ArpHdr::Reply) {
-                    continue;
-                }
+	                EthHdr* replyEthernet = (EthHdr*)packet;
 
-                if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
-                        replyArp->sip() == targetIp[i]) {
-                    macMap.insert(make_pair(targetIp[i], (Mac)replyArp->smac()));
-                    break;
-                }
+	                if (replyEthernet->type() != EthHdr::Arp) {
+	                    continue;
+	                }
+
+	                ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
+
+	                if (replyArp->hrd() != ArpHdr::ETHER ||
+	                        replyArp->pro() != EthHdr::Ip4 || replyArp->op() != ArpHdr::Reply) {
+	                    continue;
+	                }
+
+	                if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
+	                        replyArp->sip() == targetIp[i]) {
+	                    macMap.insert(make_pair(targetIp[i], (Mac)replyArp->smac()));
+	                    break;
+	                }
+	            }
             }
         }
     }
