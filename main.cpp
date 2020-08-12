@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
     Ip senderIp[(argc-3)/2];
     Ip targetIp[(argc-3)/2];
 
-    for (int i=0 ; i < (argc-3)/2 ; i++) {
+    for (int i=0 ; (argc-3)/2 > i ; i++) {
         senderIp[i] = Ip(argv[2+i*2]);
         targetIp[i] = Ip(argv[3+i*2]);
     }
@@ -147,14 +147,14 @@ int main(int argc, char* argv[]) {
 
     bool escapeFlag;
 
-    for (int i=0 ; i < (argc-3)/2 ; i++) {
+    for (int i=0 ; (argc-3)/2 > i ; i++) {
         if (macMap.end() == macMap.find(senderIp[i])) {
         	escapeFlag = false;
 
-            for (int j=0 ; j<4 ; j++) {
+            for (int j = 0 ; 4 > j ; j++) {
                 if (escapeFlag) break;
 
-                if (j > 3) {
+                if (3 < j) {
                     printf("ERROR: sender does not reply arp\n");
                     return -1;
                 }
@@ -208,10 +208,10 @@ int main(int argc, char* argv[]) {
         if (macMap.end() == macMap.find(targetIp[i])) {
         	escapeFlag = false;
 
-            for (int j=0 ; j<4 ; j++) {
+            for (int j = 0 ; 4 > j ; j++) {
                 if (escapeFlag) break;
 
-                if (j > 3) {
+                if (3 < j) {
                     printf("ERROR: target does not reply arp\n");
                     return -1;
                 }
@@ -264,7 +264,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    for (int i=0 ; i < (argc-3)/2 ; i++) {
+    for (int i=0 ; (argc-3)/2 > i ; i++) {
         if (macMap.end() != macMap.find(senderIp[i])) {
             res = sendArpReply(handle, myMac, targetIp[i], macMap.find(senderIp[i])->second, senderIp[i]);
             printf("INFO: %d.%d.%d.%d's arp table has been falsified\n", senderIp[i]>>24&0xFF, senderIp[i]>>16&0xFF, senderIp[i]>>8&0xFF, senderIp[i]>>0&0xFF);
@@ -286,9 +286,9 @@ int main(int argc, char* argv[]) {
         printf("spoofing...\n");
     }
 
-    for (int i=0 ; i < (argc-3)/2 ; i++) {
+    for (int i=0 ; (argc-3)/2 > i ; i++) {
         if (macMap.end() != macMap.find(senderIp[i])) {
-            for (int j=0 ; j<3 ; j++) {
+            for (int j = 0 ; 3 < j ; j++) {
                 res = sendArpRequest(handle, macMap.find(senderIp[i])->second, senderIp[i], targetIp[i]);
                 if (res != 0) {
                 printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
