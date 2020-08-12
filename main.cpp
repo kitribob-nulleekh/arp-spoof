@@ -154,7 +154,6 @@ int main(int argc, char* argv[]) {
       struct pcap_pkthdr* header;
       const uint8_t* packet;
       while (true) {
-        sleep(0);
         res = pcap_next_ex(handle, &header, &packet);
 
         if (res == 0) continue;
@@ -196,7 +195,6 @@ int main(int argc, char* argv[]) {
       struct pcap_pkthdr* header;
       const uint8_t* packet;
       while (true) {
-        sleep(0);
         res = pcap_next_ex(handle, &header, &packet);
 
         if (res == 0) continue;
