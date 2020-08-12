@@ -143,12 +143,14 @@ int main(int argc, char* argv[]) {
 
     time_t startTime;
 
-    int res;
+    int res, count;
 
     for (int i=0 ; i < (argc-3)/2 ; i++) {
         if (macMap.end() == macMap.find(senderIp[i])) {
-            for (int j=0 ; j < 4 ; j++) {
-                if (3 == j) {
+        	count = 0;
+
+            while (true) {
+                if (count > 3) {
                     printf("ERROR: sender does not reply arp\n");
                     return -1;
                 }
@@ -166,7 +168,10 @@ int main(int argc, char* argv[]) {
                 struct pcap_pkthdr* header;
                 const uint8_t* packet;
                 while (true) {
-                    if (time(NULL) - startTime > 3) continue;
+                    if (time(NULL) - startTime > 3) {
+                    	count++;
+                    	continue;
+                    }
 
                     res = pcap_next_ex(handle, &header, &packet);
 
@@ -199,8 +204,10 @@ int main(int argc, char* argv[]) {
             }
         }
         if (macMap.end() == macMap.find(targetIp[i])) {
-            for (int j=0 ; j < 4 ; j++) {
-                if (3 == j) {
+        	count = 0;
+        	
+            while (true) {
+                if (count > 3) {
                     printf("ERROR: target does not reply arp\n");
                     return -1;
                 }
@@ -218,7 +225,10 @@ int main(int argc, char* argv[]) {
                 struct pcap_pkthdr* header;
                 const uint8_t* packet;
                 while (true) {
-                    if (time(NULL) - startTime > 3) continue;
+                    if (time(NULL) - startTime > 3) {
+                    	count++;
+                    	continue;
+                    }
 
                     res = pcap_next_ex(handle, &header, &packet);
 
