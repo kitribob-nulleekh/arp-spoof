@@ -143,14 +143,18 @@ int main(int argc, char* argv[]) {
 
     time_t startTime;
 
-    int res, count;
+    int res;
+
+    bool escapeFlag;
 
     for (int i=0 ; i < (argc-3)/2 ; i++) {
         if (macMap.end() == macMap.find(senderIp[i])) {
-        	count = 0;
+        	escapeFlag = false;
 
-            while (true) {
-                if (count > 3) {
+            for (int j=0 ; j<4 ; j++) {
+                if (escapeFlag) break;
+
+                if (j > 3) {
                     printf("ERROR: sender does not reply arp\n");
                     return -1;
                 }
@@ -168,10 +172,7 @@ int main(int argc, char* argv[]) {
                 struct pcap_pkthdr* header;
                 const uint8_t* packet;
                 while (true) {
-                    if (time(NULL) - startTime > 3) {
-                    	count++;
-                    	continue;
-                    }
+                    if (time(NULL) - startTime > 3) break;
 
                     res = pcap_next_ex(handle, &header, &packet);
 
@@ -198,16 +199,19 @@ int main(int argc, char* argv[]) {
                     if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
                             replyArp->sip() == senderIp[i]) {
                         macMap.insert(make_pair(senderIp[i], (Mac)replyArp->smac()));
+                        escapeFlag = true;
                         break;
                     }
                 }
             }
         }
         if (macMap.end() == macMap.find(targetIp[i])) {
-        	count = 0;
-        	
-            while (true) {
-                if (count > 3) {
+        	escapeFlag = false;
+
+            for (int j=0 ; j<4 ; j++) {
+                if (escapeFlag) break;
+
+                if (j > 3) {
                     printf("ERROR: target does not reply arp\n");
                     return -1;
                 }
@@ -225,10 +229,7 @@ int main(int argc, char* argv[]) {
                 struct pcap_pkthdr* header;
                 const uint8_t* packet;
                 while (true) {
-                    if (time(NULL) - startTime > 3) {
-                    	count++;
-                    	continue;
-                    }
+                    if (time(NULL) - startTime > 3) break;
 
                     res = pcap_next_ex(handle, &header, &packet);
 
@@ -255,6 +256,7 @@ int main(int argc, char* argv[]) {
                     if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
                             replyArp->sip() == targetIp[i]) {
                         macMap.insert(make_pair(targetIp[i], (Mac)replyArp->smac()));
+                        escapeFlag = true;
                         break;
                     }
                 }
