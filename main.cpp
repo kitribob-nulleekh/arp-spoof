@@ -147,107 +147,107 @@ int main(int argc, char* argv[]) {
 
     for (int i=0 ; i < (argc-3)/2 ; i++) {
         if (macMap.end() == macMap.find(senderIp[i])) {
-        	for (int j=0 ; j < 4 ; j++) {
-        		if (3 == j) {
-	                printf("ERROR: sender does not reply arp\n");
-	                return -1;
-        		}
+            for (int j=0 ; j < 4 ; j++) {
+                if (3 == j) {
+                    printf("ERROR: sender does not reply arp\n");
+                    return -1;
+                }
 
-	        	startTime = time(NULL);
+                startTime = time(NULL);
 
-	            res = sendArpRequest(handle, myMac, myIp, senderIp[i]);
+                res = sendArpRequest(handle, myMac, myIp, senderIp[i]);
 
-	            if (res != 0) {
-	                printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
-	                       pcap_geterr(handle));
-	                return -1;
-	            }
+                if (res != 0) {
+                    printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
+                           pcap_geterr(handle));
+                    return -1;
+                }
 
-	            struct pcap_pkthdr* header;
-	            const uint8_t* packet;
-	            while (true) {
-	            	if (time(NULL) - startTime > 3) continue;
+                struct pcap_pkthdr* header;
+                const uint8_t* packet;
+                while (true) {
+                    if (time(NULL) - startTime > 3) continue;
 
-	                res = pcap_next_ex(handle, &header, &packet);
+                    res = pcap_next_ex(handle, &header, &packet);
 
-	                if (res == 0) continue;
-	                if (res == -1 || res == -2) {
-	                    printf("ERROR: pcap_next_ex return %d error=%s\n", res,
-	                           pcap_geterr(handle));
-	                    return -1;
-	                }
+                    if (res == 0) continue;
+                    if (res == -1 || res == -2) {
+                        printf("ERROR: pcap_next_ex return %d error=%s\n", res,
+                               pcap_geterr(handle));
+                        return -1;
+                    }
 
-	                EthHdr* replyEthernet = (EthHdr*)packet;
+                    EthHdr* replyEthernet = (EthHdr*)packet;
 
-	                if (replyEthernet->type() != EthHdr::Arp) {
-	                    continue;
-	                }
+                    if (replyEthernet->type() != EthHdr::Arp) {
+                        continue;
+                    }
 
-	                ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
+                    ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
 
-	                if (replyArp->hrd() != ArpHdr::ETHER ||
-	                        replyArp->pro() != EthHdr::Ip4 || replyArp->op() != ArpHdr::Reply) {
-	                    continue;
-	                }
+                    if (replyArp->hrd() != ArpHdr::ETHER ||
+                            replyArp->pro() != EthHdr::Ip4 || replyArp->op() != ArpHdr::Reply) {
+                        continue;
+                    }
 
-	                if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
-	                        replyArp->sip() == senderIp[i]) {
-	                    macMap.insert(make_pair(senderIp[i], (Mac)replyArp->smac()));
-	                    break;
-	                }
-	            }
-	        }
+                    if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
+                            replyArp->sip() == senderIp[i]) {
+                        macMap.insert(make_pair(senderIp[i], (Mac)replyArp->smac()));
+                        break;
+                    }
+                }
+            }
         }
         if (macMap.end() == macMap.find(targetIp[i])) {
-        	for (int j=0 ; j < 4 ; j++) {
-        		if (3 == j) {
-	                printf("ERROR: target does not reply arp\n");
-	                return -1;
-        		}
+            for (int j=0 ; j < 4 ; j++) {
+                if (3 == j) {
+                    printf("ERROR: target does not reply arp\n");
+                    return -1;
+                }
 
-	        	startTime = time(NULL);
+                startTime = time(NULL);
 
-	            res = sendArpRequest(handle, myMac, myIp, targetIp[i]);
+                res = sendArpRequest(handle, myMac, myIp, targetIp[i]);
 
-	            if (res != 0) {
-	                printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
-	                       pcap_geterr(handle));
-	                return -1;
-	            }
+                if (res != 0) {
+                    printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
+                           pcap_geterr(handle));
+                    return -1;
+                }
 
-	            struct pcap_pkthdr* header;
-	            const uint8_t* packet;
-	            while (true) {
-	            	if (time(NULL) - startTime > 3) continue;
+                struct pcap_pkthdr* header;
+                const uint8_t* packet;
+                while (true) {
+                    if (time(NULL) - startTime > 3) continue;
 
-	                res = pcap_next_ex(handle, &header, &packet);
+                    res = pcap_next_ex(handle, &header, &packet);
 
-	                if (res == 0) continue;
-	                if (res == -1 || res == -2) {
-	                    printf("ERROR: pcap_next_ex return %d error=%s\n", res,
-	                           pcap_geterr(handle));
-	                    return -1;
-	                }
+                    if (res == 0) continue;
+                    if (res == -1 || res == -2) {
+                        printf("ERROR: pcap_next_ex return %d error=%s\n", res,
+                               pcap_geterr(handle));
+                        return -1;
+                    }
 
-	                EthHdr* replyEthernet = (EthHdr*)packet;
+                    EthHdr* replyEthernet = (EthHdr*)packet;
 
-	                if (replyEthernet->type() != EthHdr::Arp) {
-	                    continue;
-	                }
+                    if (replyEthernet->type() != EthHdr::Arp) {
+                        continue;
+                    }
 
-	                ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
+                    ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
 
-	                if (replyArp->hrd() != ArpHdr::ETHER ||
-	                        replyArp->pro() != EthHdr::Ip4 || replyArp->op() != ArpHdr::Reply) {
-	                    continue;
-	                }
+                    if (replyArp->hrd() != ArpHdr::ETHER ||
+                            replyArp->pro() != EthHdr::Ip4 || replyArp->op() != ArpHdr::Reply) {
+                        continue;
+                    }
 
-	                if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
-	                        replyArp->sip() == targetIp[i]) {
-	                    macMap.insert(make_pair(targetIp[i], (Mac)replyArp->smac()));
-	                    break;
-	                }
-	            }
+                    if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
+                            replyArp->sip() == targetIp[i]) {
+                        macMap.insert(make_pair(targetIp[i], (Mac)replyArp->smac()));
+                        break;
+                    }
+                }
             }
         }
     }
@@ -271,7 +271,7 @@ int main(int argc, char* argv[]) {
     startTime = time(NULL);
 
     while (time(NULL)-startTime < durationTime) {
-    	printf("spoofing...\n");
+        printf("spoofing...\n");
     }
 
     for (int i=0 ; i < (argc-3)/2 ; i++) {
