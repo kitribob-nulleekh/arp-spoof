@@ -30,11 +30,11 @@ struct arp_packet {
 
 void usage() {
   printf(
-      "syntax : send-arp <interface> <sender0 ip> <target0 ip> <sender1 ip> "
-      "<target1 ip> ... <duration time(s)>\n");
+      "syntax : send-arp <interface> <sender0 ip> <target0 ip> "
+      "<sender1 ip> <target1 ip> ... <duration time(s)>\n");
   printf(
-      "sample : send-arp wlan0 192.168.10.2 192.168.10.1 192.168.10.1 "
-      "192.168.10.2 10\n");
+      "sample : send-arp wlan0 192.168.10.2 192.168.10.1 "
+      "192.168.10.1 192.168.10.2 10\n");
 }
 
 // ref:
@@ -185,23 +185,23 @@ int main(int argc, char* argv[]) {
             return -1;
           }
 
-          EthHdr* replyEthernet = (EthHdr*)packet;
+          EthHdr* ethernetHeader = (EthHdr*)packet;
 
-          if (replyEthernet->type() != EthHdr::Arp) {
+          if (ethernetHeader->type() != EthHdr::Arp) {
             continue;
           }
 
-          ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
+          ArpHdr* arpHeader = (ArpHdr*)(packet + sizeof(EthHdr));
 
-          if (replyArp->hrd() != ArpHdr::ETHER ||
-              replyArp->pro() != EthHdr::Ip4 ||
-              replyArp->op() != ArpHdr::Reply) {
+          if (arpHeader->hrd() != ArpHdr::ETHER ||
+              arpHeader->pro() != EthHdr::Ip4 ||
+              arpHeader->op() != ArpHdr::Reply) {
             continue;
           }
 
-          if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
-              replyArp->sip() == senderIp[i]) {
-            macMap.insert(make_pair(senderIp[i], (Mac)replyArp->smac()));
+          if (arpHeader->tmac() == myMac && arpHeader->tip() == myIp &&
+              arpHeader->sip() == senderIp[i]) {
+            macMap.insert(make_pair(senderIp[i], (Mac)arpHeader->smac()));
             escapeFlag = true;
             break;
           }
@@ -243,23 +243,23 @@ int main(int argc, char* argv[]) {
             return -1;
           }
 
-          EthHdr* replyEthernet = (EthHdr*)packet;
+          EthHdr* ethernetHeader = (EthHdr*)packet;
 
-          if (replyEthernet->type() != EthHdr::Arp) {
+          if (ethernetHeader->type() != EthHdr::Arp) {
             continue;
           }
 
-          ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
+          ArpHdr* arpHeader = (ArpHdr*)(packet + sizeof(EthHdr));
 
-          if (replyArp->hrd() != ArpHdr::ETHER ||
-              replyArp->pro() != EthHdr::Ip4 ||
-              replyArp->op() != ArpHdr::Reply) {
+          if (arpHeader->hrd() != ArpHdr::ETHER ||
+              arpHeader->pro() != EthHdr::Ip4 ||
+              arpHeader->op() != ArpHdr::Reply) {
             continue;
           }
 
-          if (replyArp->tmac() == myMac && replyArp->tip() == myIp &&
-              replyArp->sip() == targetIp[i]) {
-            macMap.insert(make_pair(targetIp[i], (Mac)replyArp->smac()));
+          if (arpHeader->tmac() == myMac && arpHeader->tip() == myIp &&
+              arpHeader->sip() == targetIp[i]) {
+            macMap.insert(make_pair(targetIp[i], (Mac)arpHeader->smac()));
             escapeFlag = true;
             break;
           }
@@ -303,13 +303,14 @@ int main(int argc, char* argv[]) {
       break;
     }
 
-    EthHdr* replyEthernet = (EthHdr*)packet;
-    ArpHdr* replyArp = (ArpHdr*)(packet + sizeof(EthHdr));
+    EthHdr* ethernetHeader = (EthHdr*)packet;
+    ArpHdr* arpHeader = (ArpHdr*)(packet + sizeof(EthHdr));
+    uint16_t packetSize = 0x0000;
 
     for (int i = 0; (argc - 3) / 2 > i; i++) {
-      if (replyEthernet->type() == EthHdr::Arp &&
-          replyArp->op() == ArpHdr::Request &&
-          replyEthernet->smac() == macMap.find(senderIp[i])->second) {
+      if (ethernetHeader->type() == EthHdr::Arp &&
+          arpHeader->op() == ArpHdr::Request &&
+          ethernetHeader->smac() == macMap.find(senderIp[i])->second) {
         res = sendArpReply(handle, myMac, targetIp[i],
                            macMap.find(senderIp[i])->second, senderIp[i]);
         if (res != 0) {
@@ -317,23 +318,20 @@ int main(int argc, char* argv[]) {
                  pcap_geterr(handle));
           break;
         }
-      } else if (replyEthernet->smac() == macMap.find(senderIp[i])->second) {
+      } else if (ethernetHeader->smac() == macMap.find(senderIp[i])->second) {
         memcpy((void*)packet, macMap.find(targetIp[i])->second, sizeof(Mac));
-        switch (replyEthernet->type()) {
+        switch (ethernetHeader->type()) {
           case EthHdr::Ip4:
-            res = pcap_sendpacket(
-                handle, packet,
-                sizeof(EthHdr) + packet[16] * 0x0100 + packet[17] * 0x001);
+            packetSize = sizeof(EthHdr) + packet[16] * 0x0100 + packet[17] * 0x001;
             break;
           case EthHdr::Ip6:
-            res = pcap_sendpacket(
-                handle, packet,
-                sizeof(EthHdr) + packet[18] * 0x0100 + packet[19] * 0x001);
+            packetSize = sizeof(EthHdr) + packet[18] * 0x0100 + packet[19] * 0x001;
             break;
           default:
-            printf("WARNING: unsupported type=0x%04x\n", replyEthernet->type());
+            printf("WARNING: unsupported type=0x%04x\n", ethernetHeader->type());
             break;
         }
+        res = pcap_sendpacket(handle, packet, packetSize);
         if (res != 0) {
           printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
                  pcap_geterr(handle));
