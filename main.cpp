@@ -319,9 +319,21 @@ int main(int argc, char* argv[]) {
         }
       } else if (replyEthernet->smac() == macMap.find(senderIp[i])->second) {
         memcpy((void*)packet, macMap.find(targetIp[i])->second, sizeof(Mac));
-        res = pcap_sendpacket(
-            handle, packet,
-            sizeof(EthHdr) + packet[16] * 0x0100 + packet[17] * 0x001);
+        switch (replyEthernet->type()) {
+          case EthHdr::Ip4:
+            res = pcap_sendpacket(
+                handle, packet,
+                sizeof(EthHdr) + packet[16] * 0x0100 + packet[17] * 0x001);
+            break;
+          case EthHdr::Ip6:
+            res = pcap_sendpacket(
+                handle, packet,
+                sizeof(EthHdr) + packet[18] * 0x0100 + packet[19] * 0x001);
+            break;
+          default:
+            printf("WARNING: unsupported type=0x%04x\n", replyEthernet->type());
+            break;
+        }
         if (res != 0) {
           printf("ERROR: pcap_sendpacket return %d error=%s\n", res,
                  pcap_geterr(handle));
