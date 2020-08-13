@@ -337,7 +337,7 @@ int main(int argc, char* argv[]) {
             break;
           default:
             printf("WARNING: unsupported type=0x%04x\n", ethernetHeader->type());
-            break;
+            continue;
         }
         res = pcap_sendpacket(handle, packet, packetSize);
         if (res != 0) {
