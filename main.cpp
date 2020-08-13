@@ -163,7 +163,7 @@ int main(int argc, char* argv[]) {
       for (int j = 0; 4 > j; j++) {
         if (escapeFlag) break;
 
-        if (3 < j) {
+        if (3 == j) {
           printf("FATAL: sender does not reply arp\n");
           return -1;
         }
@@ -221,7 +221,7 @@ int main(int argc, char* argv[]) {
       for (int j = 0; 4 > j; j++) {
         if (escapeFlag) break;
 
-        if (3 < j) {
+        if (3 == j) {
           printf("FATAL: target does not reply arp\n");
           return -1;
         }
