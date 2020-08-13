@@ -1,9 +1,9 @@
 LDLIBS=-lpcap
 
-all: arp-spoofing
+all: arp-spoof
 
-arp-spoofing: main.o arphdr.o ethhdr.o ip.o mac.o
+arp-spoof: main.o arphdr.o ethhdr.o ip.o mac.o
 	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 clean:
-	rm -f arp-spoofing *.o
+	rm -f arp-spoof *.o
